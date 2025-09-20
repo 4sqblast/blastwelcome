@@ -1,39 +1,32 @@
 "use client";
 
-import type React from "react";
-
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import axios, { AxiosError } from "axios";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
   CheckCircle,
   UserPlus,
   Search,
   Phone,
   Mail,
+  MapPin,
   User,
   Loader2,
   Heart,
   Star,
+  Sparkles,
   Users,
-  Calendar,
-  Code,
-  Laptop,
+  Briefcase,
+  School,
 } from "lucide-react";
 
-type WWCAttendee = {
-  name: string;
+type Guest = {
+  first_name: string;
+  last_name: string;
   phone: string;
   email: string;
-  gender: string;
-  membership: string;
-  attendance_mode: string;
-  category: string;
-  days: string;
-  heard_from: string;
-  day1: boolean;
-  day2: boolean;
-  day3: boolean;
+  school: string | null;
+  street_address: string;
 };
 
 const RotatingBanner = () => {
@@ -43,23 +36,23 @@ const RotatingBanner = () => {
   const banners = [
     {
       gradient: "from-rose-400 via-pink-500 to-purple-600",
-      title: "WWC Conference 2025",
-      subtitle: "Word and Worship Conference",
+      title: "God's Love Surrounds You",
+      subtitle: "Experience His presence today",
     },
     {
       gradient: "from-blue-400 via-cyan-500 to-teal-600",
-      title: "Worship • Word • Wonder",
-      subtitle: "Three days of spiritual growth",
+      title: "Welcome to Our Family",
+      subtitle: "Where every heart finds home",
     },
     {
       gradient: "from-amber-400 via-orange-500 to-red-600",
-      title: "Come As You Are",
-      subtitle: "Experience God's presence",
+      title: "Faith • Hope • Love",
+      subtitle: "Growing together in Christ",
     },
     {
       gradient: "from-emerald-400 via-green-500 to-teal-600",
-      title: "INFLUENCE",
-      subtitle: "Your spiritual journey continues",
+      title: "Blessed to Have You",
+      subtitle: "Your journey starts here",
     },
   ];
 
@@ -76,10 +69,10 @@ const RotatingBanner = () => {
       <div className="w-full max-w-4xl mx-auto mb-8 relative overflow-hidden rounded-3xl h-48 bg-gradient-to-r from-rose-400 via-pink-500 to-purple-600 flex items-center justify-center">
         <div className="text-center">
           <h3 className="text-3xl font-bold text-white">
-            Word and Worship Conference
+            God&apos;s Love Surrounds You
           </h3>
           <p className="text-white/90 text-lg font-medium">
-            Word . Worship . Wonder
+            Experience His presence today
           </p>
         </div>
       </div>
@@ -109,11 +102,11 @@ const RotatingBanner = () => {
               transition={{ delay: 0.3, duration: 0.6 }}
               className="flex items-center justify-center gap-2 mb-2"
             >
-              <Code className="w-6 h-6 text-white/80" />
+              <Sparkles className="w-6 h-6 text-white/80" />
               <h3 className="text-3xl font-bold text-white">
                 {banners[currentBanner].title}
               </h3>
-              <Laptop className="w-6 h-6 text-white/80" />
+              <Sparkles className="w-6 h-6 text-white/80" />
             </motion.div>
             <motion.p
               initial={{ y: 20, opacity: 0 }}
@@ -209,7 +202,7 @@ const FloatingParticles = () => {
             duration: 4 + Math.random() * 2,
             repeat: Number.POSITIVE_INFINITY,
             delay: particle.delay,
-            ease: [0.42, 0, 0, 1],
+            ease: [0.42, 0, 0.58, 1],
           }}
           style={{
             left: `${particle.left}%`,
@@ -221,32 +214,34 @@ const FloatingParticles = () => {
   );
 };
 
-export default function WWCPage() {
+export default function Home() {
   const [phone, setPhone] = useState("");
-  const [attendee, setAttendee] = useState<WWCAttendee | null>(null);
+  const [guest, setGuest] = useState<Guest | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [isUpdatingAttendance, setIsUpdatingAttendance] = useState(false);
   const [showToast, setShowToast] = useState<{
     message: string;
     type: "success" | "error";
   } | null>(null);
-  const [backUpPhone, setBackUpPhone] = useState<string>("");
 
   const [formData, setFormData] = useState({
-    name: "",
+    first_name: "",
+    last_name: "",
     phone: "",
     email: "",
+    street_address: "",
+    state: "",
+    country: "",
+    country_code: "NG",
+    age_group: "",
     gender: "",
-    membership: "Yes",
-    attendance_mode: "",
-    category: "",
-    days: "",
+    relationship: "Single",
+    born_again: false,
+    membership: false,
     heard_from: "",
-    day1: false,
-    day2: false,
-    day3: false,
+    occupation: "",
+    school: "",
   });
 
   // helper function to normalize phone
@@ -266,7 +261,8 @@ export default function WWCPage() {
     e: React.ChangeEvent<HTMLInputElement>,
     target: "form" | "phone"
   ) => {
-    const value = e.target.value;
+    // eslint-disable-next-line prefer-const
+    let value = e.target.value;
 
     if (target === "phone") {
       setPhone(normalizePhone(value));
@@ -285,9 +281,7 @@ export default function WWCPage() {
     setTimeout(() => setShowToast(null), 4000);
   };
 
-  const handleCheckAttendee = async () => {
-    console.log("called");
-    console.log(phone);
+  const handleCheckGuest = async () => {
     if (!phone.trim()) {
       showToastMessage("Please enter a phone number", "error");
       return;
@@ -296,17 +290,16 @@ export default function WWCPage() {
     setIsLoading(true);
     try {
       const res = await axios.get(
-        `https://blastwelcome.onrender.com/wwc/retrieve/${phone}/`
-        // `http://localhost:8000/wwc/retrieve/${phone}/`
+        `https://blastwelcome.onrender.com/guest/retrieve/${phone}/`
       );
-      setAttendee(res.data);
+      setGuest(res.data);
       setNotFound(false);
-      showToastMessage("Attendee found successfully!", "success");
+      showToastMessage("Guest found successfully!", "success");
     } catch (err) {
       setNotFound(true);
-      setAttendee(null);
+      setGuest(null);
       showToastMessage(
-        "Attendee not found. Please register as a new attendee.",
+        "Guest not found. Please register as a new guest.",
         "error"
       );
     } finally {
@@ -315,43 +308,13 @@ export default function WWCPage() {
     }
   };
 
-  const handleCheckAttendeeWithPhone = async (phoneNumber: string) => {
-    if (!phoneNumber.trim()) {
-      showToastMessage("Please enter a phone number", "error");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await axios.get(
-        `https://blastwelcome.onrender.com/wwc/retrieve/${phoneNumber}/`
-        // `http://localhost:8000/wwc/retrieve/${phoneNumber}/`
-      );
-      setAttendee(res.data);
-      setNotFound(false);
-      showToastMessage("Attendee found successfully!", "success");
-    } catch (err) {
-      setNotFound(true);
-      setAttendee(null);
-      showToastMessage(
-        "Attendee not found. Please register as a new attendee.",
-        "error"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateAttendee = async () => {
+  const handleCreateGuest = async () => {
     // Basic validation
-
     if (
-      !formData.name ||
+      !formData.first_name ||
+      !formData.last_name ||
       !formData.phone ||
-      !formData.email ||
-      !formData.gender ||
-      !formData.attendance_mode ||
-      !formData.category
+      !formData.email
     ) {
       showToastMessage("Please fill in all required fields", "error");
       return;
@@ -359,111 +322,60 @@ export default function WWCPage() {
 
     setIsCreating(true);
     try {
-      // Build days string based on selected days
-      const selectedDays = [];
-      if (formData.day1) selectedDays.push("Day 1 (Friday)");
-      if (formData.day2) selectedDays.push("Day 2 (Saturday)");
-      if (formData.day3) selectedDays.push("Day 3 (Sunday)");
-
       const apiData = {
         ...formData,
-        day1: false,
-        day2: false,
-        day3: false,
-        days: selectedDays.join(", "),
+        born_again: formData.born_again ? "Yes" : "No",
+        membership: formData.membership ? "Yes" : "No",
+        status: "Submitted",
       };
 
-      console.log(apiData.phone);
-      setPhone(apiData.phone);
-
       await axios.post(
-        "https://blastwelcome.onrender.com/wwc/create/",
-        // "http://localhost:8000/wwc/create/",
+        "https://blastwelcome.onrender.com/guest/create/",
         apiData
       );
-
-      showToastMessage("Welcome! Attendee registered successfully!", "success");
-      setAttendee(apiData);
+      showToastMessage("Welcome! Guest registered successfully!", "success");
+      setGuest(apiData);
       setNotFound(false);
     } catch (err: unknown) {
-      console.log(err);
       if (axios.isAxiosError(err) && err.response?.data) {
-        const errorData = err.response.data;
-
-        if (typeof errorData === "object" && errorData !== null) {
-          // Loop through fields and show the first error
-          for (const [field, messages] of Object.entries(errorData)) {
-            if (Array.isArray(messages) && messages.length > 0) {
-              showToastMessage(`${messages[0]}`, "error");
-              if (
-                messages[0] == "wwc attendee with this phone already exists."
-              ) {
-                handleCheckAttendeeWithPhone(formData.phone);
-                setNotFound(false);
-              }
-              return; // stop after first error message
-            }
+        if (err.response && err.response.data) {
+          const errorData = err.response.data;
+          if (errorData.phone) {
+            showToastMessage(errorData.phone[0], "error");
+          } else {
+            showToastMessage(
+              "Error creating guest. Please try again.",
+              "error"
+            );
           }
         }
-
-        // fallback if no structured error found
-        showToastMessage("Error creating attendee. Please try again.", "error");
-      } else {
-        console.error(err);
-        showToastMessage("Unexpected error occurred.", "error");
       }
     } finally {
       setIsCreating(false);
     }
   };
 
-  const handleUpdateAttendance = async (
-    day: "day1" | "day2" | "day3",
-    value: boolean
-  ) => {
-    if (!attendee) return;
-
-    setIsUpdatingAttendance(true);
-    try {
-      const updatedAttendee = { ...attendee, [day]: value };
-
-      // Update the API with new attendance data
-      await axios.patch(
-        `https://blastwelcome.onrender.com/wwc/update/${attendee.phone}/`,
-        {
-          [day]: value,
-        }
-      );
-
-      setAttendee(updatedAttendee);
-      showToastMessage(
-        `Attendance updated for ${day.replace("day", "Day ")}!`,
-        "success"
-      );
-    } catch (err) {
-      showToastMessage("Error updating attendance. Please try again.", "error");
-    } finally {
-      setIsUpdatingAttendance(false);
-    }
-  };
-
   const resetForm = () => {
     setPhone("");
-    setAttendee(null);
+    setGuest(null);
     setNotFound(false);
     setFormData({
-      name: "",
+      first_name: "",
+      last_name: "",
       phone: "",
       email: "",
+      street_address: "",
+      state: "",
+      country: "",
+      country_code: "NG",
+      age_group: "",
       gender: "",
-      membership: "Yes",
-      attendance_mode: "",
-      category: "",
-      days: "",
+      relationship: "Single",
+      born_again: false,
+      membership: false,
       heard_from: "",
-      day1: false,
-      day2: false,
-      day3: false,
+      occupation: "",
+      school: "",
     });
   };
 
@@ -488,7 +400,7 @@ export default function WWCPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br pt-10 from-violet-900 via-purple-900 to-indigo-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-violet-900 pt-10 via-purple-900 to-indigo-900 relative overflow-hidden">
       {/* Enhanced animated background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-72 h-72 bg-gradient-to-r from-pink-500/20 to-violet-500/20 rounded-full blur-3xl animate-pulse"></div>
@@ -506,10 +418,10 @@ export default function WWCPage() {
           className="text-center mb-8"
         >
           <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4">
-            WWC Conference 2025
+            Welcome Home
           </h1>
           <p className="text-xl text-purple-200 font-light">
-            Word and Worship Conference ✨
+            We&apos;re blessed to have you join us today 🙏
           </p>
         </motion.div>
 
@@ -538,14 +450,14 @@ export default function WWCPage() {
                   placeholder="+234XXXXXXXXXX"
                   value={phone}
                   onChange={(e) => handleChange(e, "phone")}
-                  onKeyPress={(e) => e.key === "Enter" && handleCheckAttendee()}
+                  onKeyPress={(e) => e.key === "Enter" && handleCheckGuest()}
                 />
               </div>
 
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={handleCheckAttendee}
+                onClick={handleCheckGuest}
                 disabled={isLoading}
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -556,22 +468,13 @@ export default function WWCPage() {
                 )}
                 {isLoading ? "Searching..." : "Check"}
               </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setNotFound(true)}
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                Provide Details
-              </motion.button>
             </div>
           </div>
         </motion.div>
 
-        {/* Attendee Found Section */}
+        {/* Guest Found Section */}
         <AnimatePresence>
-          {attendee && !notFound && (
+          {guest && !notFound && (
             <motion.div
               initial={{ opacity: 0, y: 50, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -593,132 +496,27 @@ export default function WWCPage() {
                   <div className="flex items-center gap-3">
                     <User className="w-5 h-5 text-emerald-300" />
                     <span className="text-lg font-semibold">
-                      {attendee.name}
+                      {guest.first_name} {guest.last_name}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Phone className="w-5 h-5 text-emerald-300" />
-                    <span>{attendee.phone}</span>
+                    <span>{guest.phone}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Mail className="w-5 h-5 text-emerald-300" />
-                    <span>{attendee.email}</span>
+                    <span>{guest.email}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Users className="w-5 h-5 text-emerald-300" />
-                    <span>{attendee.category}</span>
+                    <School className="w-5 h-5 text-emerald-300" />
+                    <span>{guest.school === "na" ? "None" : guest.school}</span>
                   </div>
-                  {/* <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5 text-emerald-300" />
-                    <span>{attendee.days}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-5 h-5 text-emerald-300" />
-                    <span>{attendee.attendance_mode}</span>
-                  </div> */}
-                </div>
-
-                {/* Attendance tracking section */}
-                <div className="mt-6 space-y-4">
-                  <h3 className="text-lg font-semibold text-emerald-200 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5" />
-                    Mark Your Attendance
-                  </h3>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    {/* Day 1 Attendance */}
-                    <div className="space-y-2">
-                      <label className="text-sm text-emerald-300">
-                        Day 1 (Friday)
-                      </label>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() =>
-                          handleUpdateAttendance("day1", !attendee.day1)
-                        }
-                        disabled={isUpdatingAttendance}
-                        className={`w-full p-2 rounded-xl border transition-all duration-300 flex items-center justify-center gap-1 text-sm ${
-                          attendee.day1
-                            ? "bg-green-500/30 border-green-400/50 text-green-200"
-                            : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-                        } disabled:opacity-50`}
-                      >
-                        <motion.div
-                          animate={{ scale: attendee.day1 ? 1.2 : 1 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          {attendee.day1 ? (
-                            <CheckCircle className="w-4 h-4" />
-                          ) : (
-                            <div className="w-4 h-4 border-2 border-current rounded-full" />
-                          )}
-                        </motion.div>
-                        {attendee.day1 ? "Present" : "Absent"}
-                      </motion.button>
+                  {guest.street_address && (
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-emerald-300" />
+                      <span>{guest.street_address}</span>
                     </div>
-
-                    {/* Day 2 Attendance */}
-                    <div className="space-y-2">
-                      <label className="text-sm text-emerald-300">
-                        Day 2 (Saturday)
-                      </label>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() =>
-                          handleUpdateAttendance("day2", !attendee.day2)
-                        }
-                        disabled={isUpdatingAttendance}
-                        className={`w-full p-2 rounded-xl border transition-all duration-300 flex items-center justify-center gap-1 text-sm ${
-                          attendee.day2
-                            ? "bg-blue-500/30 border-blue-400/50 text-blue-200"
-                            : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-                        } disabled:opacity-50`}
-                      >
-                        <motion.div
-                          animate={{ scale: attendee.day2 ? 1.2 : 1 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          {attendee.day2 ? (
-                            <CheckCircle className="w-4 h-4" />
-                          ) : (
-                            <div className="w-4 h-4 border-2 border-current rounded-full" />
-                          )}
-                        </motion.div>
-                        {attendee.day2 ? "Present" : "Absent"}
-                      </motion.button>
-                    </div>
-
-                    {/* Day 3 Attendance */}
-                    <div className="space-y-2">
-                      <label className="text-sm text-emerald-300">
-                        Day 3 (Sunday)
-                      </label>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() =>
-                          handleUpdateAttendance("day3", !attendee.day3)
-                        }
-                        disabled={isUpdatingAttendance}
-                        className={`w-full p-2 rounded-xl border transition-all duration-300 flex items-center justify-center gap-1 text-sm ${
-                          attendee.day3
-                            ? "bg-purple-500/30 border-purple-400/50 text-purple-200"
-                            : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-                        } disabled:opacity-50`}
-                      >
-                        <motion.div
-                          animate={{ scale: attendee.day3 ? 1.2 : 1 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          {attendee.day3 ? (
-                            <CheckCircle className="w-4 h-4" />
-                          ) : (
-                            <div className="w-4 h-4 border-2 border-current rounded-full" />
-                          )}
-                        </motion.div>
-                        {attendee.day3 ? "Present" : "Absent"}
-                      </motion.button>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 <motion.button
@@ -727,7 +525,7 @@ export default function WWCPage() {
                   onClick={resetForm}
                   className="mt-6 w-full bg-white/10 hover:bg-white/20 py-3 rounded-2xl font-medium transition-all duration-300"
                 >
-                  Check Another Attendee
+                  Check Another Guest
                 </motion.button>
               </div>
             </motion.div>
@@ -749,9 +547,7 @@ export default function WWCPage() {
                   <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl">
                     <UserPlus className="w-6 h-6" />
                   </div>
-                  <h2 className="text-2xl font-bold">
-                    Join WWC Conference 2025
-                  </h2>
+                  <h2 className="text-2xl font-bold">Join Our Family</h2>
                 </div>
 
                 <motion.div
@@ -767,39 +563,115 @@ export default function WWCPage() {
                       Personal Information
                     </h3>
 
-                    <motion.input
-                      whileFocus={{ scale: 1.02 }}
-                      type="text"
-                      placeholder="Full Name *"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          name: e.target.value,
-                        })
-                      }
-                      className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
-                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <motion.input
+                        whileFocus={{ scale: 1.02 }}
+                        type="text"
+                        placeholder="First Name *"
+                        value={formData.first_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            first_name: e.target.value,
+                          })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      />
+                      <motion.input
+                        whileFocus={{ scale: 1.02 }}
+                        type="text"
+                        placeholder="Last Name *"
+                        value={formData.last_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            last_name: e.target.value,
+                          })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <motion.select
+                        whileFocus={{ scale: 1.02 }}
+                        value={formData.gender}
+                        onChange={(e) =>
+                          setFormData({ ...formData, gender: e.target.value })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      >
+                        <option value="" className="bg-purple-900">
+                          Select Gender
+                        </option>
+                        <option value="Male" className="bg-purple-900">
+                          Male
+                        </option>
+                        <option value="Female" className="bg-purple-900">
+                          Female
+                        </option>
+                        <option value="Other" className="bg-purple-900">
+                          Other
+                        </option>
+                      </motion.select>
+
+                      <motion.select
+                        whileFocus={{ scale: 1.02 }}
+                        value={formData.age_group}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            age_group: e.target.value,
+                          })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      >
+                        <option value="" className="bg-purple-900">
+                          Age Group
+                        </option>
+                        <option value="Child (0-12)" className="bg-purple-900">
+                          Child (0-12)
+                        </option>
+                        <option value="Teen (13-19)" className="bg-purple-900">
+                          Teen (13-19)
+                        </option>
+                        <option
+                          value="Young Adult (20-35)"
+                          className="bg-purple-900"
+                        >
+                          Young Adult (20-35)
+                        </option>
+                        <option value="Adult (36-55)" className="bg-purple-900">
+                          Adult (36-55)
+                        </option>
+                        <option value="Senior (55+)" className="bg-purple-900">
+                          Senior (55+)
+                        </option>
+                      </motion.select>
+                    </div>
 
                     <motion.select
                       whileFocus={{ scale: 1.02 }}
-                      value={formData.gender}
+                      value={formData.relationship}
                       onChange={(e) =>
-                        setFormData({ ...formData, gender: e.target.value })
+                        setFormData({
+                          ...formData,
+                          relationship: e.target.value,
+                        })
                       }
                       className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
                     >
-                      <option value="" className="bg-purple-900">
-                        Select Gender *
+                      <option value="Single" className="bg-purple-900">
+                        Single
                       </option>
-                      <option value="Female" className="bg-purple-900">
-                        Female
+                      <option value="Married" className="bg-purple-900">
+                        Married
                       </option>
-                      <option value="Male" className="bg-purple-900">
-                        Male
+                      <option value="Divorced" className="bg-purple-900">
+                        Divorced
                       </option>
-                      <option value="Other" className="bg-purple-900">
-                        Other
+                      <option value="Widowed" className="bg-purple-900">
+                        Widowed
                       </option>
                     </motion.select>
                   </motion.div>
@@ -824,9 +696,6 @@ export default function WWCPage() {
                     <motion.input
                       whileFocus={{ scale: 1.02 }}
                       type="email"
-                      name="email"
-                      required
-                      pattern="[a-z0-9._%+-]+@gmail\.com"
                       placeholder="Email Address *"
                       value={formData.email}
                       onChange={(e) =>
@@ -834,83 +703,101 @@ export default function WWCPage() {
                       }
                       className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
                     />
-                  </motion.div>
 
-                  {/* Event Information Section */}
-                  <motion.div variants={itemVariants} className="space-y-4">
-                    <h3 className="text-lg font-semibold text-amber-200 flex items-center gap-2">
-                      <Code className="w-5 h-5" />
-                      Event Information
-                    </h3>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <motion.select
-                        whileFocus={{ scale: 1.02 }}
-                        required={true}
-                        value={formData.category}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            category: e.target.value,
-                          })
-                        }
-                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
-                      >
-                        <option value="" className="bg-purple-900">
-                          Category *
-                        </option>
-                        <option value="Student" className="bg-purple-900">
-                          Student
-                        </option>
-                        <option value="Professional" className="bg-purple-900">
-                          Professional
-                        </option>
-                      </motion.select>
-
-                      <motion.select
-                        whileFocus={{ scale: 1.02 }}
-                        value={formData.attendance_mode}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            attendance_mode: e.target.value,
-                          })
-                        }
-                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
-                      >
-                        <option value="" className="bg-purple-900">
-                          Attendance Mode *
-                        </option>
-                        <option value="In person" className="bg-purple-900">
-                          In Person
-                        </option>
-                        <option value="Virtual" className="bg-purple-900">
-                          Virtual
-                        </option>
-                        <option value="Both" className="bg-purple-900">
-                          Both
-                        </option>
-                      </motion.select>
-                    </div>
-
-                    <motion.select
+                    <motion.input
                       whileFocus={{ scale: 1.02 }}
-                      value={formData.membership}
+                      type="text"
+                      placeholder="Street Address"
+                      value={formData.street_address}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          membership: e.target.value,
+                          street_address: e.target.value,
                         })
                       }
-                      className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
-                    >
-                      <option value="Yes" className="bg-purple-900">
-                        Already a Member
-                      </option>
-                      <option value="No" className="bg-purple-900">
-                        Not a Member
-                      </option>
-                    </motion.select>
+                      className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                    />
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <motion.input
+                        whileFocus={{ scale: 1.02 }}
+                        type="text"
+                        placeholder="State"
+                        value={formData.state}
+                        onChange={(e) =>
+                          setFormData({ ...formData, state: e.target.value })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      />
+                      <motion.input
+                        whileFocus={{ scale: 1.02 }}
+                        type="text"
+                        placeholder="Country"
+                        value={formData.country}
+                        onChange={(e) =>
+                          setFormData({ ...formData, country: e.target.value })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      />
+                      <motion.select
+                        whileFocus={{ scale: 1.02 }}
+                        value={formData.country_code}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            country_code: e.target.value,
+                          })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      >
+                        <option value="NG" className="bg-purple-900">
+                          🇳🇬 NG
+                        </option>
+                        <option value="US" className="bg-purple-900">
+                          🇺🇸 US
+                        </option>
+                        <option value="UK" className="bg-purple-900">
+                          🇬🇧 UK
+                        </option>
+                        <option value="CA" className="bg-purple-900">
+                          🇨🇦 CA
+                        </option>
+                      </motion.select>
+                    </div>
+                  </motion.div>
+
+                  {/* Professional & Educational Information */}
+                  <motion.div variants={itemVariants} className="space-y-4">
+                    <h3 className="text-lg font-semibold text-amber-200 flex items-center gap-2">
+                      <Briefcase className="w-5 h-5" />
+                      Professional & Education
+                    </h3>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <motion.input
+                        whileFocus={{ scale: 1.02 }}
+                        type="text"
+                        placeholder="Occupation"
+                        value={formData.occupation}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            occupation: e.target.value,
+                          })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      />
+                      <motion.input
+                        whileFocus={{ scale: 1.02 }}
+                        type="text"
+                        placeholder="School/University"
+                        value={formData.school}
+                        onChange={(e) =>
+                          setFormData({ ...formData, school: e.target.value })
+                        }
+                        className="p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-300"
+                      />
+                    </div>
 
                     <motion.input
                       whileFocus={{ scale: 1.02 }}
@@ -924,110 +811,77 @@ export default function WWCPage() {
                     />
                   </motion.div>
 
-                  {/* Days Selection */}
+                  {/* Spiritual Information */}
                   <motion.div variants={itemVariants} className="space-y-4">
                     <h3 className="text-lg font-semibold text-pink-200 flex items-center gap-2">
-                      <Calendar className="w-5 h-5" />
-                      Which days will you attend?
+                      <Heart className="w-5 h-5" />
+                      Spiritual Journey
                     </h3>
 
-                    <div className="grid grid-cols-3 gap-3">
-                      {/* Day 1 Toggle */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Born Again Toggle */}
                       <div className="space-y-2">
                         <label className="text-sm text-purple-200">
-                          Day 1 (Friday)
+                          Are you born again?
                         </label>
                         <motion.button
                           whileTap={{ scale: 0.95 }}
                           onClick={() =>
                             setFormData({
                               ...formData,
-                              day1: !formData.day1,
+                              born_again: !formData.born_again,
                             })
                           }
                           className={`w-full p-3 rounded-xl border transition-all duration-300 flex items-center justify-center gap-2 ${
-                            formData.day1
+                            formData.born_again
                               ? "bg-green-500/20 border-green-400/50 text-green-200"
-                              : "bg-white/10 border-white/20 text-white hover:bg-white/20"
+                              : "bg-white/10 border-white/20 text-white"
                           }`}
                         >
                           <motion.div
-                            animate={{ scale: formData.day1 ? 1.2 : 1 }}
+                            animate={{ scale: formData.born_again ? 1.2 : 1 }}
                             transition={{ duration: 0.2 }}
                           >
-                            {formData.day1 ? (
+                            {formData.born_again ? (
                               <CheckCircle className="w-5 h-5" />
                             ) : (
                               <div className="w-5 h-5 border-2 border-current rounded-full" />
                             )}
                           </motion.div>
-                          {formData.day1 ? "Yes" : "No"}
+                          {formData.born_again ? "Yes" : "No"}
                         </motion.button>
                       </div>
 
-                      {/* Day 2 Toggle */}
+                      {/* Membership Toggle */}
                       <div className="space-y-2">
                         <label className="text-sm text-purple-200">
-                          Day 2 (Saturday)
+                          Like to be a member?
                         </label>
                         <motion.button
                           whileTap={{ scale: 0.95 }}
                           onClick={() =>
                             setFormData({
                               ...formData,
-                              day2: !formData.day2,
+                              membership: !formData.membership,
                             })
                           }
                           className={`w-full p-3 rounded-xl border transition-all duration-300 flex items-center justify-center gap-2 ${
-                            formData.day2
+                            formData.membership
                               ? "bg-blue-500/20 border-blue-400/50 text-blue-200"
-                              : "bg-white/10 border-white/20 text-white hover:bg-white/20"
+                              : "bg-white/10 border-white/20 text-white"
                           }`}
                         >
                           <motion.div
-                            animate={{ scale: formData.day2 ? 1.2 : 1 }}
+                            animate={{ scale: formData.membership ? 1.2 : 1 }}
                             transition={{ duration: 0.2 }}
                           >
-                            {formData.day2 ? (
-                              <CheckCircle className="w-5 h-5" />
+                            {formData.membership ? (
+                              <Users className="w-5 h-5" />
                             ) : (
                               <div className="w-5 h-5 border-2 border-current rounded-full" />
                             )}
                           </motion.div>
-                          {formData.day2 ? "Yes" : "No"}
-                        </motion.button>
-                      </div>
-
-                      {/* Day 3 Toggle */}
-                      <div className="space-y-2">
-                        <label className="text-sm text-purple-200">
-                          Day 3 (Sunday)
-                        </label>
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() =>
-                            setFormData({
-                              ...formData,
-                              day3: !formData.day3,
-                            })
-                          }
-                          className={`w-full p-3 rounded-xl border transition-all duration-300 flex items-center justify-center gap-2 ${
-                            formData.day3
-                              ? "bg-purple-500/20 border-purple-400/50 text-purple-200"
-                              : "bg-white/10 border-white/20 text-white hover:bg-white/20"
-                          }`}
-                        >
-                          <motion.div
-                            animate={{ scale: formData.day3 ? 1.2 : 1 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            {formData.day3 ? (
-                              <CheckCircle className="w-5 h-5" />
-                            ) : (
-                              <div className="w-5 h-5 border-2 border-current rounded-full" />
-                            )}
-                          </motion.div>
-                          {formData.day3 ? "Yes" : "No"}
+                          {formData.membership ? "Yes" : "No"}
                         </motion.button>
                       </div>
                     </div>
@@ -1037,7 +891,7 @@ export default function WWCPage() {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={handleCreateAttendee}
+                  onClick={handleCreateGuest}
                   disabled={isCreating}
                   className="mt-8 w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 py-4 rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
@@ -1046,9 +900,7 @@ export default function WWCPage() {
                   ) : (
                     <UserPlus className="w-5 h-5" />
                   )}
-                  {isCreating
-                    ? "Registering..."
-                    : "Register for WWC Conference"}
+                  {isCreating ? "Registering..." : "Register Guest"}
                 </motion.button>
 
                 <p className="text-sm text-purple-200 mt-4 text-center">
@@ -1069,7 +921,7 @@ export default function WWCPage() {
               className="fixed top-6 right-6 z-100 mt-10"
             >
               <div
-                className={`p-4 rounded-2xl shadow-2xl backdrop-blur-xl border z-50 ${
+                className={`p-4 rounded-2xl shadow-2xl backdrop-blur-xl border ${
                   showToast.type === "success"
                     ? "bg-emerald-500/20 border-emerald-400/30 text-emerald-100"
                     : "bg-red-500/20 border-red-400/30 text-red-100"
